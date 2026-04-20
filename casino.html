@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Казино</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 20px; font-size: 2rem; }
+        #gameCanvas {
+            border: 3px solid #ffd700;
+            background: #0d1117;
+            border-radius: 10px;
+        }
+        .info { margin-top: 20px; text-align: center; }
+        .score { font-size: 1.5rem; color: #ffd700; }
+        .back-link {
+            margin-top: 20px;
+            color: #58a6ff;
+            text-decoration: none;
+        }
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .bet-btn {
+            background: rgba(255, 215, 0, 0.2);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        .bet-btn:hover, .bet-btn.active {
+            background: #ffd700;
+            color: #1a1a2e;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎰 Казино</h1>
+    <canvas id="gameCanvas" width="400" height="300"></canvas>
+    <div class="info">
+        <div class="score">Баланс: <span id="balance">1000</span> | Ставка: <span id="bet">100</span></div>
+        <div class="controls">
+            <button class="bet-btn active" data-bet="10">10</button>
+            <button class="bet-btn" data-bet="50">50</button>
+            <button class="bet-btn" data-bet="100">100</button>
+            <button class="bet-btn" data-bet="500">500</button>
+        </div>
+        <div>← → выбор | Enter - Spin</div>
+    </div>
+    <a href="index.html" class="back-link">← Назад к статистике</a>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const symbols = ['🍒', '🍋', '🍇', '💎', '7️⃣', '🎰'];
+        const weights = [35, 30, 20, 10, 4, 1];
+        
+        let balance = 1000;
+        let bet = 100;
+        let reels = [0, 0, 0];
+        let spinning = false;
+        let result = '';
+        
+        function weightedRandom() {
+            const total = weights.reduce((a, b) => a + b, 0);
+            let r = Math.random() * total;
+            for (let i = 0; i < weights.length; i++) {
+                r -= weights[i];
+                if (r <= 0) return i;
+            }
+            return 0;
+        }
+        
+        function draw() {
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.font = '60px sans-serif';
+            ctx.textAlign = 'center';
+            
+            for (let i = 0; i < 3; i++) {
+                let y = 80 + i * 80;
+                ctx.fillStyle = spinning ? '#58a6ff' : '#ffd700';
+                ctx.fillText(symbols[reels[i]], 80 + i * 120, y);
+            }
+            
+            if (result) {
+                ctx.font = '24px sans-serif';
+                ctx.fillStyle = result.includes('ПОБЕДА') ? '#7ee787' : '#ff6b6b';
+                ctx.fillText(result, canvas.width / 2, 260);
+            }
+        }
+        
+        function spin() {
+            if (spinning || balance < bet) return;
+            
+            balance -= bet;
+            spinning = true;
+            result = '';
+            
+            let steps = 20;
+            let interval = setInterval(() => {
+                reels = [weightedRandom(), weightedRandom(), weightedRandom()];
+                draw();
+                steps--;
+                if (steps <= 0) {
+                    clearInterval(interval);
+                    finishSpin();
+                }
+            }, 100);
+        }
+        
+        function finishSpin() {
+            let win = 0;
+            
+            if (reels[0] === reels[1] && reels[1] === reels[2]) {
+                win = bet * 10;
+                result = 'ПОБЕДА! x' + (reels[0] === 5 ? 50 : 5);
+            } else if (reels[0] === reels[1] || reels[1] === reels[2] || reels[0] === reels[2]) {
+                win = bet * 2;
+                result = 'ПОБЕДА! x2';
+            }
+            
+            if (win > 0) {
+                balance += win;
+                result += ' +' + win;
+            } else {
+                result = 'Попробуй ещё';
+            }
+            
+            document.getElementById('balance').textContent = balance;
+            spinning = false;
+            draw();
+        }
+        
+        document.querySelectorAll('.bet-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                bet = parseInt(btn.dataset.bet);
+                document.getElementById('bet').textContent = bet;
+            });
+        });
+        
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Enter') spin();
+        });
+        
+        draw();
+    </script>
+</body>
+</html>
