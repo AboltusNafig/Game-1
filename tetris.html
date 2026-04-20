@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тетрис</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 20px; font-size: 2rem; }
+        #gameCanvas {
+            border: 3px solid #58a6ff;
+            background: #0d1117;
+        }
+        .info { margin-top: 20px; text-align: center; }
+        .score { font-size: 1.5rem; color: #58a6ff; }
+        .back-link {
+            margin-top: 20px;
+            color: #58a6ff;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧱 Тетрис</h1>
+    <canvas id="gameCanvas" width="240" height="400"></canvas>
+    <div class="info">
+        <div class="score">Счёт: <span id="score">0</span></div>
+        <div>← → движение | ↑ поворот | ↓ ускорить</div>
+    </div>
+    <a href="index.html" class="back-link">← Назад к статистике</a>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scale = 20;
+        const cols = canvas.width / scale;
+        const rows = canvas.height / scale;
+        
+        const pieces = [
+            [[1,1,1,1]],
+            [[1,1],[1,1]],
+            [[1,1,1],[0,1,0]],
+            [[1,1,1],[1,0,0]],
+            [[1,1,1],[0,0,1]],
+            [[1,1,0],[0,1,1]],
+            [[0,1,1],[1,1,0]]
+        ];
+        
+        let board = Array(rows).fill().map(() => Array(cols).fill(0));
+        let piece = null;
+        let px = 0, py = 0;
+        let score = 0;
+        let gameOver = false;
+        let lastTime = 0;
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        
+        function newPiece() {
+            piece = pieces[Math.floor(Math.random() * pieces.length)];
+            px = Math.floor(cols / 2) - Math.floor(piece[0].length / 2);
+            py = 0;
+            if (collide(board, piece, px, py)) gameOver = true;
+        }
+        
+        function collide(b, p, x, y) {
+            for (let r = 0; r < p.length; r++) {
+                for (let c = 0; c < p[r].length; c++) {
+                    if (p[r][c] && (b[y + r] === undefined || b[y + r][x + c] === undefined || b[y + r][x + c])) return true;
+                }
+            }
+            return false;
+        }
+        
+        function merge(b, p, x, y) {
+            p.forEach((row, r) => row.forEach((v, c) => { if (v) b[y + r][x + c] = v; }));
+        }
+        
+        function rotate(p) {
+            return p[0].map((_, i) => p.map(row => row[i]).reverse());
+        }
+        
+        function clear() {
+            let lines = 0;
+            for (let r = rows - 1; r >= 0; r--) {
+                if (board[r].every(v => v)) {
+                    board.splice(r, 1);
+                    board.unshift(Array(cols).fill(0));
+                    lines++;
+                    r++;
+                }
+            }
+            if (lines) score += lines * 100;
+            document.getElementById('score').textContent = score;
+        }
+        
+        function draw() {
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            board.forEach((row, r) => row.forEach((v, c) => {
+                if (v) {
+                    ctx.fillStyle = '#58a6ff';
+                    ctx.fillRect(c * scale, r * scale, scale - 1, scale - 1);
+                }
+            }));
+            if (piece) {
+                ctx.fillStyle = '#7ee787';
+                piece.forEach((row, r) => row.forEach((v, c) => {
+                    if (v) ctx.fillRect((px + c) * scale, (py + r) * scale, scale - 1, scale - 1);
+                }));
+            }
+        }
+        
+        function update(time = 0) {
+            if (gameOver) return;
+            const dt = time - lastTime;
+            lastTime = time;
+            dropCounter += dt;
+            if (dropCounter > dropInterval) { py++; if (collide(board, piece, px, py)) { py--; merge(board, piece, px, py); clear(); newPiece(); } dropCounter = 0; }
+            draw();
+            requestAnimationFrame(update);
+        }
+        
+        document.addEventListener('keydown', e => {
+            if (gameOver) return;
+            if (e.key === 'ArrowLeft' && !collide(board, piece, px - 1, py)) px--;
+            if (e.key === 'ArrowRight' && !collide(board, piece, px + 1, py)) px++;
+            if (e.key === 'ArrowDown' && !collide(board, piece, px, py + 1)) { py++; score += 10; document.getElementById('score').textContent = score; }
+            if (e.key === 'ArrowUp') {
+                let r = rotate(piece);
+                if (!collide(board, r, px, py)) piece = r;
+            }
+            draw();
+        });
+        
+        newPiece();
+        update();
+    </script>
+</body>
+</html>
